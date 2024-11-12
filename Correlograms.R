@@ -65,8 +65,13 @@ colunas_padrao <- c("matricula", "nome_discente", "sexo", "ano_ingresso", "perio
 dados_combinados <- arquivos %>%
   map_df(~ler_e_padronizar(.x, colunas_padrao))
 
-ingresso <- unique(dados_combinados$status)
+status <- unique(dados_combinados$status)
+print(status)
+
+ingresso <- unique(dados_combinados$forma_ingresso)
 print(ingresso)
+
+
 
 #top 10 formas de ingresso
 top_ingressos <- dados_combinados %>%
@@ -78,6 +83,7 @@ top_ingressos <- dados_combinados %>%
 
 
 dados2 <- dados_combinados %>%
+#  count(matricula) %>%
   mutate(
     Sex_Fem = ifelse(sexo == "F", 1, 0),
     Sex_Mas = ifelse(sexo == "M", 1, 0),
@@ -123,7 +129,14 @@ dados2 <- dados_combinados %>%
 #    FI_REI_ESP = ifelse(forma_ingresso == "REINGRESSO ESPECÍFICO", 1, 0),
     TD_REG = ifelse(tipo_discente == "REGULAR", 1, 0),
     TD_ESP = ifelse(tipo_discente == "ESPECIAL", 1, 0),
-#    FI_ = ifelse(sexo == , 1, 0),
+    ST_CANCELADO = ifelse(status == "CANCELADO" , 1, 0),
+    ST_CONCLUIDO = ifelse(status == "CONCLUÍDO" , 1, 0),
+    ST_FORMADO = ifelse(status == "FORMADO" , 1, 0),
+    ST_ATIVO = ifelse(status == "ATIVO" , 1, 0),
+    ST_DEFENDIDO = ifelse(status == "DEFENDIDO" , 1, 0),
+    ST_AT_FORMANDO = ifelse(status == "ATIVO - FORMANDO" , 1, 0),
+    ST_TRANCADO = ifelse(status == "TRANCADO" , 1, 0),
+    ST_CADASTRADO = ifelse(status == "CADASTRADO" , 1, 0)
 #    FI_ = ifelse(sexo == , 1, 0),
 #    FI_ = ifelse(sexo == , 1, 0),
 #    FI_ = ifelse(sexo == , 1, 0),
@@ -166,6 +179,8 @@ diag(matrix2) <- 0
 # Ajustar o tamanho da janela gráfica
 windows(width = 30, height = 20) # Para Windows
 
+#na.omit()
+
 #Gráfico 2
 corrplot(matrix2, method = 'circle', type = 'lower', title = "Matriz de Correlação 2", na.label = ".") +
   geom_point() +
@@ -176,72 +191,55 @@ corrplot(matrix2, method = 'circle', type = 'lower', title = "Matriz de Correla�
 #is rendered as a square with the na.label.col color.
 
 
-ggplot(matrix2, aes(x = Var1, y = Var2, fill = value)) +
+
+
+#Dados3
+# tipo 1 = Regular / 0 = Especial
+dados_status <- dados2 %>%
+  filter(!is.na(status))
+
+dados3 <- dados_status %>%
+  group_by(ano_ingresso, status) %>%
+  summarise(matricula = n(), .groups = 'drop')
+
+
+#matrix 3
+# Status dos alunos por ano
+ggplot(dados3, aes(x = ano_ingresso, y = status, fill = matricula)) +
   geom_tile() +
-  scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 0, limit = c(-1, 1), space = "Lab", name="Correlação") +
-  theme_minimal() +
-  labs(title = "Mapa de Calor das Correlações", x = "Variáveis", y = "Variáveis") +
-  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
-
-#filtro top 10
-top_cursos <- dados_combinados %>%
-  count(nome_curso) %>%
-  top_n(10, n) %>%
-  arrange(desc(n))
-
-m <- dados_combinados |>
-  filter(nome_curso %in% top_cursos) 
-
-
-
-# Gerar o gráfico de distribuição de gênero por curso
-ggplot(m, aes(x = nome_curso, fill = sexo)) +
-  geom_bar(position = "dodge") +
-  theme_minimal() +
-  labs(title = "Distribuição de Gênero por Curso", x = "Curso", y = "Contagem") +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = median(dados3$matricula), space = "Lab", name="Correlação") +
+#  theme_minimal() +
+  labs(title = "Mapa de Calor das Correlações", x = "Ano", y = "Status") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) 
+#  scale_x_discrete(guide = guide_axis(check.overlap = false))
 
 
 
 
+#Dados4
+dados_modalidade <- dados2 %>%
+  filter(!is.na(modalidade_educacao))
 
-# Gerar o gráfico de forma de ingresso e sucesso acadêmico
-ggplot(dados, aes(x = forma_ingresso, fill = status)) +
-  geom_bar(position = "dodge") +
-  theme_minimal() +
-  labs(title = "Forma de Ingresso e Sucesso Acadêmico", x = "Forma de Ingresso", y = "Contagem") +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
-
-
-# Gerar o gráfico de modalidade e sucesso acadêmico
-ggplot(dados, aes(x = modalidade_educacao, fill = status)) +
-  geom_bar(position = "dodge") +
-  theme_minimal() +
-  labs(title = "Modalidade e Sucesso Acadêmico", x = "Modalidade de Educação", y = "Contagem") +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+dados4 <- dados_modalidade %>%
+  group_by(ano_ingresso, modalidade_educacao) %>%
+  summarise(matricula = n(), .groups = 'drop')
 
 
-# Gerar o gráfico de ano de ingresso e status
-ggplot(dados, aes(x = ano_ingresso, fill = status)) +
-  geom_bar(position = "dodge") +
-  theme_minimal() +
-  labs(title = "Ano de Ingresso e Status dos Alunos", x = "Ano de Ingresso", y = "Contagem") +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+#matrix 4
+#Modalidade Educacao dos alunos por ano
+ggplot(dados4, aes(x = ano_ingresso, y = modalidade_educacao, fill = matricula)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = median(dados3$matricula), space = "Lab", name="Correlação") +
+  #  theme_minimal() +
+  labs(title = "Mapa de Calor das Correlações", x = "Ano", y = "Modalidade") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) 
+#  scale_x_discrete(guide = guide_axis(check.overlap = false))
 
 
-
+#Grafico 5
 # Gerar o gráfico de correlograma
-ggpairs(dados_combinados) +
+ggpairs(dados_num) +
   theme_minimal() +
   labs(title = "Correlograma dos Dados Combinados")
 
-
-
-
-ggplot(data = correlacoes_melt, aes(x = Var1, y = Var2, fill = value)) +
-  geom_tile() +
-  scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 0, limit = c(-1, 1), space = "Lab", name="Correlação") +
-  theme_minimal() +
-  labs(title = "Mapa de Calor das Correlações", x = "Variáveis", y = "Variáveis") +
-  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
 
