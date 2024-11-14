@@ -5,7 +5,6 @@
 #PCO207/2024
 ######################################################
 
-
 library(tidyverse)
 library(janitor)
 library(palmerpenguins)
@@ -157,8 +156,8 @@ diag(matrix) <- 0
 # Ajustar o tamanho da janela gráfica
 windows(width = 16, height = 9) # Para Windows
 
-#Gráfico
-corrplot(matrix, method = 'circle', type = 'lower', tl.cex = 0.9,title = "Matriz de Correlação") +
+#Gráfico 1
+corrplot(matrix, method = 'circle', type = 'lower', tl.cex = 0.9,title = "Matriz de Correlação", addCoef.col = 'black') +
   geom_point() +
   theme_minimal() + 
   theme(legend.position="bottom")
@@ -202,44 +201,82 @@ dados3 <- dados_status %>%
   group_by(ano_ingresso, status) %>%
   summarise(matricula = n(), .groups = 'drop')
 
+dados3$status_num <- as.numeric(as.factor(dados3$status))
+correlacao <- cor(dados3$ano_ingresso, dados3$status_num)
+
+dados_correlacao <- dados3 %>%
+  group_by(ano_ingresso, status) %>%
+  summarise(correlacao = cor(as.numeric(ano_ingresso), as.numeric(as.factor(status)), use = "complete.obs"), .groups = 'drop')
+
+
 
 #matrix 3
 # Status dos alunos por ano
-ggplot(dados3, aes(x = ano_ingresso, y = status, fill = matricula)) +
+ggplot(dados3, aes(x = ano_ingresso, y = status, fill = correlacao, addCoef.col = 'black')) +
   geom_tile() +
-  scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = median(dados3$matricula), space = "Lab", name="Correlação") +
-#  theme_minimal() +
+  geom_text(aes(label = round(correlacao, 2)), color = "black") +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 0, space = "Lab", name="Correlação") +
+  theme_minimal() +
   labs(title = "Mapa de Calor das Correlações", x = "Ano", y = "Status") +
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) 
-#  scale_x_discrete(guide = guide_axis(check.overlap = false))
+  scale_x_discrete(guide = guide_axis(check.overlap = TRUE))
 
 
 
 
 #Dados4
-dados_modalidade <- dados2 %>%
-  filter(!is.na(modalidade_educacao))
+  # Converter 'ano_ingresso' e 'modalidade_educacao' para numérico
+  dados_modalidade <- dados2 %>%
+    filter(!is.na(modalidade_educacao)) %>%
+    mutate(
+      ano_ingresso_num = as.numeric(ano_ingresso),
+      modalidade_educacao_num = as.numeric(as.factor(modalidade_educacao))
+    )
+
+# Calcular a correlação para cada combinação de 'ano_ingresso' e 'modalidade_educacao'
+  dados_correlacao <- dados_modalidade %>%
+    group_by(ano_ingresso, modalidade_educacao) %>%
+    summarise(
+      correlacao = ifelse(sd(ano_ingresso_num) == 0 | sd(modalidade_educacao_num) == 0, NA, cor(ano_ingresso_num, modalidade_educacao_num, use = "complete.obs")),
+      .groups = 'drop'
+    ) 
+  
+# Calcular a correlação entre 'ano_ingresso_num' e 'modalidade_educacao_num' 
+correlacao <- cor(dados_modalidade$ano_ingresso_num, dados_modalidade$modalidade_educacao_num, use = "complete.obs")  
+
+
+# Criar um novo dataframe com os valores de correlação
+dados_correlacao <- data.frame(
+  ano_ingresso = unique(dados_modalidade$ano_ingresso),
+  modalidade_educacao = unique(dados_modalidade$modalidade_educacao),
+  correlacao = correlacao
+)
+
+
+
 
 dados4 <- dados_modalidade %>%
   group_by(ano_ingresso, modalidade_educacao) %>%
-  summarise(matricula = n(), .groups = 'drop')
+  summarise(contagem = n(), .groups = 'drop')
 
 
 #matrix 4
 #Modalidade Educacao dos alunos por ano
-ggplot(dados4, aes(x = ano_ingresso, y = modalidade_educacao, fill = matricula)) +
+ggplot(dados4, aes(x = ano_ingresso, y = modalidade_educacao, fill = contagem)) +
   geom_tile() +
-  scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = median(dados3$matricula), space = "Lab", name="Correlação") +
-  #  theme_minimal() +
+#  geom_text(aes(label = round(contagem, 2)), color = "black") +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = median(dados4$contagem, na.rm = TRUE), space = "Lab", name="Correlação") +
+  theme_minimal() +
   labs(title = "Mapa de Calor das Correlações", x = "Ano", y = "Modalidade") +
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) 
-#  scale_x_discrete(guide = guide_axis(check.overlap = false))
+  scale_x_discrete(guide = guide_axis(check.overlap = TRUE))
 
 
 #Grafico 5
 # Gerar o gráfico de correlograma
 ggpairs(dados_num) +
   theme_minimal() +
-  labs(title = "Correlograma dos Dados Combinados")
+  labs(title = "Correlograma dos Dados Combinados") +
+  theme_bw()
 
 
